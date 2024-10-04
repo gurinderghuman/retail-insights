@@ -186,6 +186,44 @@ async def get_competitor_analysis():
         }
     }
 
+@app.get("/api/dashboard")
+async def get_dashboard():
+    # Aggregate data from other endpoints
+    brochure_data = await get_brochure_analytics()
+    geospatial_data = await get_geospatial_analysis()
+    competitor_data = await get_competitor_analysis()
+    
+    # For personalized recommendations and campaign performance, we'll use sample data
+    sample_recommendations = await get_personalized_recommendations(user_id=1)
+    sample_campaign = await get_campaign_performance(campaign_id=1)
+    
+    return {
+        "brochure_analytics": {
+            "total_views": brochure_data["total_views"],
+            "total_unique_visitors": brochure_data["total_unique_visitors"],
+            "average_time_spent": brochure_data["average_time_spent"],
+            "top_products": brochure_data["top_products"][:3]  # Top 3 products
+        },
+        "geospatial_overview": {
+            "total_sales": geospatial_data["total_sales"],
+            "total_stores": geospatial_data["total_stores"],
+            "average_customer_density": geospatial_data["average_customer_density"]
+        },
+        "competitor_overview": {
+            "our_market_share": competitor_data["our_company"]["market_share"],
+            "top_competitor": max(competitor_data["competitor_data"], key=lambda x: x["market_share"]),
+            "market_trends": competitor_data["market_trends"][:2]  # Top 2 market trends
+        },
+        "recent_recommendations": sample_recommendations.recommendations[:3],  # Top 3 recommendations
+        "recent_campaign": {
+            "name": sample_campaign.name,
+            "impressions": sample_campaign.impressions,
+            "clicks": sample_campaign.clicks,
+            "conversions": sample_campaign.conversions,
+            "revenue": sample_campaign.revenue
+        }
+    }
+
 @app.post("/products/", response_model=schemas.Product)
 def create_product(product: schemas.ProductCreate, db: Session = Depends(get_db)):
     return crud.create_product(db=db, product=product)
