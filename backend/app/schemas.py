@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field
 from typing import List, Optional
 from datetime import datetime
 
-# Existing Product schemas
+# Product schemas
 class ProductBase(BaseModel):
     name: str
     category: str
@@ -31,7 +31,7 @@ class PersonalizedRecommendations(BaseModel):
     user_id: int
     recommendations: List[ProductRecommendation]
 
-# New Brochure schemas
+# Brochure schemas
 class BrochureBase(BaseModel):
     title: str
     views: int = Field(..., ge=0)
@@ -49,7 +49,7 @@ class Brochure(BrochureBase):
     class Config:
         from_attributes = True
 
-# New Campaign schemas
+# Campaign schemas
 class CampaignBase(BaseModel):
     name: str
     start_date: datetime
@@ -70,23 +70,13 @@ class Campaign(CampaignBase):
     class Config:
         from_attributes = True
 
-# Existing CampaignPerformance schema
-class CampaignPerformance(BaseModel):
+class CampaignPerformance(CampaignBase):
     id: int
-    name: str
-    start_date: datetime
-    end_date: datetime
-    budget: float = Field(..., gt=0)
-    spend: float = Field(..., ge=0)
-    impressions: int = Field(..., ge=0)
-    clicks: int = Field(..., ge=0)
-    conversions: int = Field(..., ge=0)
-    revenue: float = Field(..., ge=0)
     ctr: float
     conversion_rate: float
     roas: float
 
-# New Store schemas
+# Store schemas
 class StoreBase(BaseModel):
     name: str
     region: str
@@ -104,7 +94,7 @@ class Store(StoreBase):
     class Config:
         from_attributes = True
 
-# New Competitor schemas
+# Competitor schemas
 class CompetitorBase(BaseModel):
     name: str
     market_share: float = Field(..., ge=0, le=100)

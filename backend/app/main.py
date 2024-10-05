@@ -1,10 +1,10 @@
 from fastapi import FastAPI, HTTPException, Query, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, Field
 from typing import List, Optional, Dict
 from datetime import datetime, timedelta
 import random
+import traceback
 
 from .database import SessionLocal, engine
 from . import models, schemas, crud
@@ -34,9 +34,58 @@ def get_db():
 async def root():
     return {"message": "Welcome to the Retail Insights Platform API"}
 
+@app.get("/api/dashboard")
+async def get_dashboard():
+    try:
+        brochure_data = await get_brochure_analytics()
+        geospatial_data = await get_geospatial_analysis()
+        competitor_data = await get_competitor_analysis()
+        sample_recommendations = await get_personalized_recommendations(user_id=1)
+        sample_campaign = await get_campaign_performance(campaign_id=1)
+        
+        dashboard_data = {
+            "brochure_analytics": {
+                "total_views": brochure_data["total_views"],
+                "total_unique_visitors": brochure_data["total_unique_visitors"],
+                "average_time_spent": brochure_data["average_time_spent"],
+                "top_products": brochure_data["top_products"][:3]  # Top 3 products
+            },
+            "geospatial_overview": {
+                "total_sales": geospatial_data["total_sales"],
+                "total_stores": geospatial_data["total_stores"],
+                "average_customer_density": geospatial_data["average_customer_density"]
+            },
+            "competitor_overview": {
+                "our_market_share": competitor_data["our_company"]["market_share"],
+                "top_competitor": max(competitor_data["competitor_data"], key=lambda x: x["market_share"]),
+                "market_trends": competitor_data["market_trends"][:2]  # Top 2 market trends
+            },
+            "recent_recommendations": [
+                {
+                    "name": rec.name,
+                    "category": rec.category,
+                    "price": rec.price,
+                    "rating": rec.rating,
+                    "recommendation_reason": rec.recommendation_reason
+                } for rec in sample_recommendations.recommendations[:3]
+            ],
+            "recent_campaign": {
+                "name": sample_campaign.name,
+                "impressions": sample_campaign.impressions,
+                "clicks": sample_campaign.clicks,
+                "conversions": sample_campaign.conversions,
+                "revenue": sample_campaign.revenue
+            }
+        }
+        
+        return dashboard_data
+    except Exception as e:
+        error_msg = f"Error in get_dashboard: {str(e)}\n{traceback.format_exc()}"
+        print(error_msg)
+        raise HTTPException(status_code=500, detail=error_msg)
+
 @app.get("/api/brochure-analytics")
 async def get_brochure_analytics():
-    # Simulating data for the last 7 days
     end_date = datetime.now()
     start_date = end_date - timedelta(days=7)
     
@@ -47,7 +96,7 @@ async def get_brochure_analytics():
             "date": date.strftime("%Y-%m-%d"),
             "views": random.randint(1000, 5000),
             "unique_visitors": random.randint(800, 3000),
-            "average_time_spent": round(random.uniform(30, 180), 2),  # in seconds
+            "average_time_spent": round(random.uniform(30, 180), 2),
             "click_through_rate": round(random.uniform(0.02, 0.15), 3)
         })
     
@@ -70,7 +119,6 @@ async def get_brochure_analytics():
 
 @app.get("/api/geospatial-analysis")
 async def get_geospatial_analysis():
-    # Simulating geospatial data for different regions
     regions = ["North", "South", "East", "West", "Central"]
     
     regional_data = []
@@ -106,7 +154,7 @@ async def get_personalized_recommendations(user_id: int = Query(..., gt=0)):
     product_categories = ["Electronics", "Clothing", "Home Goods", "Sports", "Books", "Food"]
     for _ in range(5):  # Generating 5 recommendations
         recommendations.append(schemas.ProductRecommendation(
-            product_name=f"Product {random.randint(1, 100)}",
+            name=f"Product {random.randint(1, 100)}",
             category=random.choice(product_categories),
             price=round(random.uniform(10, 500), 2),
             rating=round(random.uniform(3.5, 5), 1),
@@ -122,7 +170,6 @@ async def get_personalized_recommendations(user_id: int = Query(..., gt=0)):
 
 @app.get("/api/campaign-performance", response_model=schemas.CampaignPerformance)
 async def get_campaign_performance(campaign_id: int = Query(..., gt=0)):
-    # Simulating campaign performance data
     if random.random() < 0.1:  # Simulate campaign not found error (10% chance)
         raise HTTPException(status_code=404, detail="Campaign not found")
     
@@ -153,9 +200,7 @@ async def get_campaign_performance(campaign_id: int = Query(..., gt=0)):
 
 @app.get("/api/competitor-analysis")
 async def get_competitor_analysis():
-    # Simulating competitor analysis data
     competitors = ["CompetitorA", "CompetitorB", "CompetitorC", "CompetitorD"]
-    metrics = ["Market Share", "Customer Satisfaction", "Price Competitiveness", "Product Range"]
     
     competitor_data = []
     for competitor in competitors:
@@ -186,44 +231,7 @@ async def get_competitor_analysis():
         }
     }
 
-@app.get("/api/dashboard")
-async def get_dashboard():
-    # Aggregate data from other endpoints
-    brochure_data = await get_brochure_analytics()
-    geospatial_data = await get_geospatial_analysis()
-    competitor_data = await get_competitor_analysis()
-    
-    # For personalized recommendations and campaign performance, we'll use sample data
-    sample_recommendations = await get_personalized_recommendations(user_id=1)
-    sample_campaign = await get_campaign_performance(campaign_id=1)
-    
-    return {
-        "brochure_analytics": {
-            "total_views": brochure_data["total_views"],
-            "total_unique_visitors": brochure_data["total_unique_visitors"],
-            "average_time_spent": brochure_data["average_time_spent"],
-            "top_products": brochure_data["top_products"][:3]  # Top 3 products
-        },
-        "geospatial_overview": {
-            "total_sales": geospatial_data["total_sales"],
-            "total_stores": geospatial_data["total_stores"],
-            "average_customer_density": geospatial_data["average_customer_density"]
-        },
-        "competitor_overview": {
-            "our_market_share": competitor_data["our_company"]["market_share"],
-            "top_competitor": max(competitor_data["competitor_data"], key=lambda x: x["market_share"]),
-            "market_trends": competitor_data["market_trends"][:2]  # Top 2 market trends
-        },
-        "recent_recommendations": sample_recommendations.recommendations[:3],  # Top 3 recommendations
-        "recent_campaign": {
-            "name": sample_campaign.name,
-            "impressions": sample_campaign.impressions,
-            "clicks": sample_campaign.clicks,
-            "conversions": sample_campaign.conversions,
-            "revenue": sample_campaign.revenue
-        }
-    }
-
+# Product CRUD operations
 @app.post("/products/", response_model=schemas.Product)
 def create_product(product: schemas.ProductCreate, db: Session = Depends(get_db)):
     return crud.create_product(db=db, product=product)
